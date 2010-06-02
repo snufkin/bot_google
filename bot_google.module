@@ -32,15 +32,13 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
     }
   }
 
-  if (strlen($keywords) > 2) {
+  if (drupal_strlen($keywords) > 2) {
     $search = bot_google_search(urlencode($keywords));
     if (!empty($search[0]->url)) {
-      $output = chr(2) ."Google" . chr(2) . "'s";
-      $output .= ' lucky result for "' . chr(2) . $keywords . chr(2) . '" is: ' . $search[0]->url;
-      $output .= '. More results at: http://google.com/search?q=' . urlencode($keywords);
+      $output = t("Google's lucky result for \"!keywords\" is: !url - more results at: !more", array('!keywords' => $keywords, '!url' => $search[0]->url, '!more' => 'http://google.com/search?q='. urlencode($keywords)));
     }
     else {
-      $output = 'Your search - ' . chr(2) . $keywords . chr(2) . ' - did not match any documents.';
+      $output = t('Your search - !keywords - did not match any documents.', array('!keywords' => $keywords));
     }
     bot_message($to, $output);
   }
