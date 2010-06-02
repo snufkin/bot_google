@@ -1,9 +1,9 @@
 <?php
-// $Id: bot_google.module,v 1.1 2009/03/29 11:00:52 Gurpartap Exp $
+// $Id$
 
 /**
  * @file
- * Search in Google directly in IRC.
+ * Search in Google directly from IRC.
  */
 
 /**
@@ -12,9 +12,9 @@
 function bot_google_help($path, $args) {
   switch ($path) {
     case 'irc:features':
-      return array(t('Google'));
-    case 'irc:features#google':
-      return t('Search in Google directly in IRC. Syntax: botname: google keywords here');
+      return array(t('Search'));
+    case 'irc:features#search':
+      return t('Search in Google directly from IRC. Syntax: botname: search keywords here');
   }
 }
 
@@ -22,20 +22,21 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
   $to = $from_query ? $data->nick : $data->channel;
   $addressed = bot_name_regexp();
 
-  if (preg_match("/^google (.*)/i", trim($data->message), $matches)) {
+  if (preg_match("/^search (.*)/i", trim($data->message), $matches)) {
     $keywords = $matches[1];
   }
-
-  if (preg_match("/^$addressed/i", $data->message) || $from_query) { 
-    if (preg_match("!.*?google (.*)!i", trim($data->message), $matches)) {
-      $keywords = $matches[1];
-    }
+  elseif (preg_match("/^$addressed search (.*)/i", $data->message, $matches)) {
+    $keywords = $matches[2];
   }
 
-  if (drupal_strlen($keywords) > 2) {
+  if (isset($keywords)) {
     $search = bot_google_search(urlencode($keywords));
     if (!empty($search[0]->url)) {
-      $output = t("Google's lucky result for \"!keywords\" is: !url - more results at: !more", array('!keywords' => $keywords, '!url' => $search[0]->url, '!more' => 'http://google.com/search?q='. urlencode($keywords)));
+      $output = t("!url - more results: !more", 
+      array(
+        '!url' => $search[0]->url,
+        '!more' => 'http://google.com/search?q='. $keywords
+      ));
     }
     else {
       $output = t('Your search - !keywords - did not match any documents.', array('!keywords' => $keywords));
