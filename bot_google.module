@@ -30,16 +30,18 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
   }
 
   if (isset($keywords)) {
-    $search = bot_google_search(urlencode($keywords));
+    $search = bot_google_search($keywords);
+    $query = drupal_query_string_encode(array('q' => $keywords));
     if (!empty($search[0]->url)) {
-      $output = t("!url - more results: !more", 
+      $output = t("@title => @url - more results: @more", 
       array(
-        '!url' => $search[0]->url,
-        '!more' => 'http://google.com/search?q='. $keywords
+        '@title' => truncate_utf8($search[0]->titleNoFormatting, 40, TRUE, TRUE),
+        '@url' => $search[0]->url,
+        '@more' => "http://google.com/search?$query",
       ));
     }
     else {
-      $output = t('Your search - !keywords - did not match any documents.', array('!keywords' => $keywords));
+      $output = t('Your search - "!keywords" - did not match any documents.', array('!keywords' => $keywords));
     }
     bot_message($to, $output);
   }
@@ -56,7 +58,8 @@ function bot_google_irc_msg_query($data) {
  * Search Google using the API.
  */
 function bot_google_search($keywords) {
-  $google = "http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=$keywords";
+  $query = drupal_query_string_encode(array('v' => '1.0', 'q' => $keywords));
+  $google = "http://ajax.googleapis.com/ajax/services/search/web?$query";
   $result = drupal_http_request($google);
   $response = json_decode($result->data);
   return $response->responseData->results;
