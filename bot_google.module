@@ -25,7 +25,7 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
   if (preg_match("/^search (.*)/i", trim($data->message), $matches)) {
     $keywords = $matches[1];
   }
-  elseif (preg_match("/^$addressed search (.*)/i", $data->message, $matches)) {
+  elseif (preg_match("/^$addressed s (.*)/i", $data->message, $matches)) {
     $keywords = $matches[2];
   }
 
