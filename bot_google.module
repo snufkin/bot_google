@@ -3,7 +3,7 @@
 
 /**
  * @file
- * Search in Google directly from IRC.
+ * Integration between the bot and google APIs.
  */
 
 /**
@@ -15,6 +15,8 @@ function bot_google_help($path, $args) {
       return array(t('Search'));
     case 'irc:features#search':
       return t('Search in Google directly from IRC. Syntax: botname: search keywords here');
+    case 'irc:features#calculator':
+      return t('Convert quantities to different units using the Google calculator. Syntax: botname: convert <amount> <unit> to <unit> or botname: convert <unit> <amount> to <unit>');
   }
 }
 
@@ -24,27 +26,54 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
 
   if (preg_match("/^search (.*)/i", trim($data->message), $matches)) {
     $keywords = $matches[1];
+    bot_google_execute_search($keywords);
   }
-  elseif (preg_match("/^$addressed s (.*)/i", $data->message, $matches)) {
+  if (preg_match("/^$addressed s (.*)/i", $data->message, $matches)) {
     $keywords = $matches[2];
+    bot_google_execute_search($to, $keywords);
   }
 
-  if (isset($keywords)) {
-    $search = bot_google_search($keywords);
-    $query = drupal_query_string_encode(array('q' => $keywords));
-    if (!empty($search[0]->url)) {
-      $output = t("@title => @url - more results: @more", 
+  $amount = "([0-9]+.?[0-9]+)";
+  $unit = "([A-Za-z]{0,3})";
+  if (preg_match("/^$addressed convert $amount $unit to $unit$/", $data->message, $matches)) {
+    bot_google_execute_calculator($to, $matches[1], $matches[2], $matches[3]);
+  }
+  if (preg_match("/^$addressed convert $unit $amount to $unit$/", $data->message, $matches)) {
+    bot_google_execute_calculator($to, $matches[2], $matches[1], $matches[3]);
+  }
+}
+
+function bot_google_execute_calculator($to, $amount, $from_unit, $to_unit) {
+  $query = drupal_query_string_encode(array(
+    'hl' => 'en',
+    'q' => "$amount$from_unit=?$to_unit",
+  ));
+  $url = "http://www.google.com/ig/calculator?$query";
+  $result = drupal_http_request($url);
+  $data = json_decode($result->data);
+  if ($data->error) {
+    bot_message($to, t('Query encountered an error: @error', array('@error' => $data->error)));
+  }
+  else {
+    bot_message($to, t('@question is @answer', array('@question' => $data->lhs, '@answer' => $data->rhs)));
+  }
+}
+
+function bot_google_execute_search($to, $keywords) {
+  $search = bot_google_search($keywords);
+  if (!empty($search[0]->url)) {
+    $output = t("@title => @url - more results: @more", 
       array(
         '@title' => truncate_utf8($search[0]->titleNoFormatting, 40, TRUE, TRUE),
         '@url' => $search[0]->url,
-        '@more' => "http://google.com/search?$query",
-      ));
-    }
-    else {
-      $output = t('Your search - "!keywords" - did not match any documents.', array('!keywords' => $keywords));
-    }
-    bot_message($to, $output);
+        '@more' => "http://google.com/search?" . drupal_query_string_encode(array('q' => $keywords)),
+      )
+    );
   }
+  else {
+    $output = t('Your search - "!keywords" - did not match any documents.', array('!keywords' => $keywords));
+  }
+  bot_message($to, $output);
 }
 
 /**
