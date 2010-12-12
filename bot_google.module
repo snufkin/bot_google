@@ -25,21 +25,20 @@ function bot_google_irc_msg_channel($data, $from_query = FALSE) {
   $addressed = bot_name_regexp();
 
   if (preg_match("/^search (.*)/i", trim($data->message), $matches)) {
-    $keywords = $matches[1];
-    bot_google_execute_search($keywords);
+    bot_google_execute_search($to, $matches[1]);
   }
   if (preg_match("/^$addressed s (.*)/i", $data->message, $matches)) {
-    $keywords = $matches[2];
-    bot_google_execute_search($to, $keywords);
+    bot_google_execute_search($to, $matches[2]);
   }
 
-  $amount = "([0-9]+.?[0-9]+)";
+  // Because of the double capture matches 2 and 3 will be the amount.
+  $amount = "(\d+)*(\.\d+)?";
   $unit = "([A-Za-z]{0,3})";
-  if (preg_match("/^$addressed convert $amount $unit to $unit$/", $data->message, $matches)) {
-    bot_google_execute_calculator($to, $matches[1], $matches[2], $matches[3]);
+  if (preg_match("/^$addressed convert $amount $unit to $unit/", $data->message, $matches)) {
+    bot_google_execute_calculator($to, $matches[2] . $matches[3], $matches[4], $matches[5]);
   }
-  if (preg_match("/^$addressed convert $unit $amount to $unit$/", $data->message, $matches)) {
-    bot_google_execute_calculator($to, $matches[2], $matches[1], $matches[3]);
+  if (preg_match("/^$addressed convert $unit $amount to $unit/", $data->message, $matches)) {
+    bot_google_execute_calculator($to, $matches[4], $matches[2] . $matches[4], $matches[5]);
   }
 }
 
@@ -50,7 +49,14 @@ function bot_google_execute_calculator($to, $amount, $from_unit, $to_unit) {
   ));
   $url = "http://www.google.com/ig/calculator?$query";
   $result = drupal_http_request($url);
-  $data = json_decode($result->data);
+  // The calculator returns malformed JSON thingie, lets fix it.
+  $fix = array(
+    '{' => '{"',
+    ':' => '":',
+    ',' => ',"',
+  );
+  $data = str_replace(array_keys($fix), array_values($fix), $result->data);
+  $data = json_decode($data);
   if ($data->error) {
     bot_message($to, t('Query encountered an error: @error', array('@error' => $data->error)));
   }
